@@ -876,8 +876,8 @@ components:
     Reason:
       type: string
       enum:
-        - CUSTOMER_REQUESTED
-        - SUPPLIER_REQUESTED
+        - CUSTOMER
+        - SUPPLIER
         - FRAUD
         - OTHER
       description: |
