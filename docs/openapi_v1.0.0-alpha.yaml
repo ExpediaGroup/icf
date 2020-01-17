@@ -7,7 +7,7 @@ servers:
 info:
   description: |
     An open-source API for connecting Resellers and Booking Platforms.
-    
+
     The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [BCP 14](https://tools.ietf.org/html/bcp14) [RFC 2119](https://tools.ietf.org/html/rfc2119) [RFC 8174](https://tools.ietf.org/html/rfc8174) when, and only when, they appear in all capitals, as shown here.
   version: "1.0.0-alpha"
   title: 'Independent Connectivity Forum API'
@@ -43,7 +43,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  
+
   /products:
     get:
       tags:
@@ -74,7 +74,34 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  
+
+  /availability/calendar:
+    get:
+      tags:
+        - Availability
+      summary: Get a list of dates on which tickets are available
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarItem'
+      operationId: getCalendar
+      parameters:
+        - $ref: '#/components/parameters/LocalDateStart'
+        - $ref: '#/components/parameters/LocalDateEnd'
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/SupplierId'
+        - $ref: '#/components/parameters/OptionIds'
+      description: |-
+        Returns a list of dates on which tickets are available.
+        Only dates that have availability SHALL BE returned.
+        A minimum range of 31 days MUST BE supported.
+
+        This endpoint proved a relatively lightweight way to show a calendar in a user interface containing a one month calendar with the days where there is no availability greyed out.
   /availability:
     get:
       tags:
@@ -82,13 +109,13 @@ paths:
       summary: 'Returns a list of dates and their availability status.'
       description: |
         For any dates which are never available for booking, the response MUST exclude those dates entirely.
-        
+
         If the product's `availabilityType` is `OPENING_HOURS` then the `localStartDateTime` and `localEndDateTime` are the hours of operation. If a product has more than one hours of operation on the same day (e.g. the supplier is open 8-5 but closed for lunch from 12-1) then one availability object MUST be returned for each contiguous range of time for that day.
-        
+
         The availability `id` value MUST be sent when making a Reservation request.
-        
+
         The `status` field SHOULD be used to infer how frequently your cache should be updated from the Booking Platform. The RECOMMENDED frequency is as follows:
-        
+
           * `FREESALE`: Always available. Refresh no more than once/week.
           * `AVAILABLE`: Currently available for sale, but has a fixed capacity. Refresh every 12 hours.
           * `LIMITED`: Currently available for sale, but has a fixed capacity and may be sold out soon. Refresh at least once/hour.
@@ -369,7 +396,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-
 components:
   schemas:
     Availability:
@@ -408,7 +434,7 @@ components:
               type: string
               description: |
                 This represents whether the availability in this configuration is currently bookable. The values have the following meanings:
-    
+
                 * `FREESALE`: Always available.
                 * `AVAILABLE`: Currently available for sale, but has a fixed capacity.
                 * `LIMITED`: Currently available for sale, but has a fixed capacity and may be sold out soon.
@@ -489,7 +515,7 @@ components:
             - DAILY
           description: |
             This is the RECOMMENDED refresh interval for the Reseller and SHOULD be used by the Reseller to control the frequency at which they make a `getBooking` request for the following scenarios:
-            
+
             * To see if a booking/cancellation has changed out of a `PENDING` status into `CONFIRMED` or `REJECTED`.
             * To see if a booking has had any new Vouchers or Tickets delivered for the booking.
             * To see if a booking has changed from `CONFIRMED` to `CANCELLED` in the event of a supplier-initiated cancellation.
@@ -556,7 +582,7 @@ components:
             - NONE
           description: |
             This value indicates the expected refund from the Supplier.
-            
+
             * `FULL` indicates that the Supplier has fully refunded the booking and will not be paid by the Reseller for this booking. This is the expected state when a valid cancellation request is made before any cancellation cutoff policy or when a Supplier approves a cancellation request that was made after the cutoff.
             * `PARTIAL` indicates that the Supplier has agreed to partially refund the customer. This may be due to a cancellation policy that grants a partial refund or because the Supplier has agreed to partially refund the customer when the cancellation policy would otherwise have not allowed any refund.
             * `NONE` indicates that no refund will be given by the Supplier. The customer may still be refunded by the Reseller but the Supplier MUST still be paid for this booking.
@@ -670,6 +696,23 @@ components:
       description: |
         A value of `TICKET` indicates that there will be one `deliveryValue` for each ticket in the Booking while a value of `VOUCHER` indicates that there will be one `deliveryValue` that is shared among all tickets in the Booking.
       example: 'VOUCHER'
+    DeliveryOption:
+      type: object
+      required:
+        - deliveryFormat
+        - deliveryValue
+      properties:
+        deliveryFormat:
+          # https://github.com/OAI/OpenAPI-Specification/issues/1368
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DeliveryFormat'
+        deliveryValue:
+          type: string
+          nullable: true
+          description: |
+            Represents the value for the voucher or ticket that should be used. If the `deliveryFormat` is `PDF_URL` then this value MUST be a valid [URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) that resolves to a `PDF` resource. For any other `deliveryFormat` this value MUST be encoded according to the `deliveryFormat` value.
+          example: '01234567890'
     Locale:
       type: string
       description: |
@@ -752,6 +795,8 @@ components:
           type: boolean
           description: |
             This indicates whether the Reseller can expect an immediate confirmation of whether the Supplier has accepted the booking. If `false` then the Reseller MUST be able to delay confirmation to the customer while waiting for the Supplier to accept or reject the Booking.
+
+            When `instantConfirmation` is set to `false` one should expect created reservations to first get into a `PENDING` state.
           example: true
         instantDelivery:
           type: boolean
@@ -837,7 +882,7 @@ components:
         - OTHER
       description: |
         This value indicates the reason that the cancellation request was sent.
-        
+
         * `CUSTOMER` is the most common and indicates that the customer requested the cancellation.
         * `SUPPLIER` indicates that the supplier requested the cancellation (possibly due to bad weather or other unexpected circumstances).
         * `FRAUD` indicates that the booking cancellation is being requested by the Reseller because it has been determined the booking was fraudulent.
@@ -875,21 +920,23 @@ components:
             - CANCELLED
           description: |
             After a successful `createReservation` or `createCancellation` request, the `status` MUST be `ON_HOLD`.
-            
+
             After a successful `confirmReservation` request, the `status` MUST be `CONFIRMED`.
-            
+
             After a successful `confirmCancellation` request, the `status` MUST be `CANCELLED`.
-            
+
             Following are the only valid Reservation flow status transitions:
-            
+
             * New Reservation -> `REJECTED`
             * New Reservation -> `ON_HOLD` -> `EXPIRED`
             * New Reservation -> `ON_HOLD` -> `CONFIRMED`
             * New Reservation -> `ON_HOLD` -> `PENDING` -> `REJECTED`
             * New Reservation -> `ON_HOLD` -> `PENDING` -> `CONFIRMED`
-            
+
+            The `PENDING` status MAY appear only for products with the `instantConfirmation` property set to `false`. Poll the /bookings endpoint for status changes.
+
             Following are the only valid Cancellation flow status transitions:
-            
+
             * `CONFIRMED` -> `REJECTED`
             * `CONFIRMED` -> `ON_HOLD` -> `EXPIRED`
             * `CONFIRMED` -> `ON_HOLD` -> `CANCELLED`
@@ -960,23 +1007,15 @@ components:
     Ticket:
       type: object
       required:
-        - deliveryFormat
-        - deliveryValue
+        - deliveryOptions
         - redemptionMethod
         - utcDeliveredAt
         - utcRedeemedAt
       properties:
-        deliveryFormat:
-          # https://github.com/OAI/OpenAPI-Specification/issues/1368
-          nullable: true
-          allOf:
-            - $ref: '#/components/schemas/DeliveryFormat'
-        deliveryValue:
-          type: string
-          nullable: true
-          description: |
-            Represents the value for the voucher or ticket that should be used. If the `deliveryFormat` is `PDF_URL` then this value MUST be a valid [URI](https://en.wikipedia.org/wiki/Uniform_Resource_Identifier) that resolves to a `PDF` resource. For any other `deliveryFormat` this value MUST be encoded according to the `deliveryFormat` value.
-          example: '01234567890'
+        deliveryOptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveryOption'
         redemptionMethod:
           $ref: '#/components/schemas/RedemptionMethod'
         utcDeliveredAt:
@@ -1084,6 +1123,16 @@ components:
       description: |
         This UUID is generated for the initial `createReservation` request and MUST never change. This value MUST be tracked by both the Reseller and Booking Platform for locating this record.
       example: '7df49d62-57ad-44be-8373-e4c2fe7e63fe'
+    CalendarItem:
+      title: CalendarItem
+      type: object
+      properties:
+        localDate:
+          type: string
+          format: date
+        capacity:
+          type: integer
+          minimum: 0
   responses:
     BadRequest:
       description: |
@@ -1162,6 +1211,17 @@ components:
       schema:
         type: string
         format: uuid
+    OptionIds:
+      name: optionIds
+      in: query
+      description: |
+        A list of valid option IDs that matches `id`s returned from `GET /products`. TODO: IS THIS REALLY CORRECT??
+      schema:
+        type: array
+        items:
+          type: string
+          format: string
+      required: false
   requestBodies:
     AvailabilityCheckRequest:
       required: true
@@ -1273,7 +1333,7 @@ components:
                   - OTHER
                 description: |
                   This indicates the reason for extending the reservation hold.
-                  
+
                   * `FRAUD_CHECK` is the most common scenario where additional time is required to ensure that the booking reservation is not being made using fraudulent payment information.
                   * `CUSTOMER_REQUESTED` is intended for scenarios where the customer is actively completing the checkout process but requires some additional time to complete. The Reseller SHOULD try to ensure that customers may only extend their reservation once.
                   * `OTHER` can be used in other unusual circumstances but SHOULD not be abused to maintain a hold without good reason. If this value is specified the Reseller SHOULD provide `reasonDetails` to explain the justification.
