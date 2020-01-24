@@ -44,12 +44,14 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /products:
+  /suppliers/{supplierId}/products:
     get:
       tags:
         - Products
       summary: 'Returns a list of products for a specific supplier.'
       description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
         Contains all product details necessary to ingest, map, and sell.
       operationId: 'getProducts'
       parameters:
@@ -75,7 +77,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /availability/calendar:
+  /suppliers/{supplierId}/availability/calendar:
     get:
       tags:
         - Availability
@@ -97,17 +99,22 @@ paths:
         - $ref: '#/components/parameters/SupplierId'
         - $ref: '#/components/parameters/OptionIds'
       description: |-
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
         Returns a list of dates on which tickets are available.
         Only dates that have availability SHALL BE returned.
         A minimum range of 31 days MUST BE supported.
 
         This endpoint proved a relatively lightweight way to show a calendar in a user interface containing a one month calendar with the days where there is no availability greyed out.
-  /availability:
+
+  /suppliers/{supplierId}/availability:
     get:
       tags:
         - Availability
       summary: 'Returns a list of dates and their availability status.'
       description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
         For any dates which are never available for booking, the response MUST exclude those dates entirely.
 
         If the product's `availabilityType` is `OPENING_HOURS` then the `localStartDateTime` and `localEndDateTime` are the hours of operation. If a product has more than one hours of operation on the same day (e.g. the supplier is open 8-5 but closed for lunch from 12-1) then one availability object MUST be returned for each contiguous range of time for that day.
@@ -164,6 +171,8 @@ paths:
         - Availability
       summary: 'Returns a list of dates after evaluating the specific Unit and Availability IDs that the customer would like to book.'
       description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
         This request is intended to provide the Booking Platform a complete view of the Unit IDs, Unit quantity, and Availability IDs so that additional restrictions and policies can be validated within the Booking Platform prior to making a Reservation. The purpose is to provide a clear and accurate answer to the Reseller about whether the requested booking configuration could be accepted by the Supplier. This is to support complex booking requirements without the Reseller needing to know the details of the restriction (e.g. "must purchase at least 1 adult ticket if a child ticket is purchased").
       operationId: 'availabilityCheck'
       parameters:
@@ -202,16 +211,69 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /reservations:
+  /suppliers/{supplierId}/bookings:
+    get:
+      tags:
+        - Bookings
+      summary: 'Gets the current details of an in-progress reservation or completed booking.'
+      description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
+        This returns the current state of any valid booking. This request MAY be made at any point after the initial `createReservation` request is processed successfully and it MUST return the booking reservation object.
+      operationId: 'getBooking'
+      parameters:
+        - $ref: '#/components/parameters/SupplierId'
+        - $ref: '#/components/parameters/Uuid'
+      responses:
+        '200':
+          $ref: '#/components/responses/BookingReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /suppliers/{supplierId}/bookings/{uuid}:
+    get:
+      tags:
+        - Bookings
+      summary: 'Get the booking details.'
+      description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+      operationId: 'getBookings'
+      parameters:
+        - $ref: '#/components/parameters/SupplierId'
+        - $ref: '#/components/parameters/Uuid'
+      responses:
+        '200':
+          $ref: '#/components/responses/BookingReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags:
-        - Reservations
+        - Bookings
       summary: 'Create a new booking reservation.'
       description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
         This creates a new booking reservation.
       operationId: 'createReservation'
       parameters:
         - $ref: '#/components/parameters/SupplierId'
+        - $ref: '#/components/parameters/Uuid'
       requestBody:
         $ref: '#/components/requestBodies/CreateReservationRequest'
       responses:
@@ -227,35 +289,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-    patch:
-      tags:
-        - Reservations
-      summary: 'Extend the hold of an existing reservation.'
-      description: |
-        This extends the hold of an existing reservation. The `utcHoldExpiration` MUST NOT be elapsed when this request is sent, otherwise the response MAY show a `status` of `EXPIRED`.
-      operationId: 'extendReservation'
-      parameters:
-        - $ref: '#/components/parameters/SupplierId'
-      requestBody:
-        $ref: '#/components/requestBodies/ExtendReservationRequest'
-      responses:
-        '200':
-          $ref: '#/components/responses/BookingReservationResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
     delete:
       tags:
-        - Reservations
+        - Bookings
       summary: 'Expire the hold of an existing reservation.'
       description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
         This expires the availability hold of an existing reservation so that the availablity is release for other booking reservations. This request is a courtesy, however Resellers SHOULD send this in order to ensure proper cleanup of any outstanding holds.
       operationId: 'expireReservation'
       parameters:
@@ -274,41 +314,20 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-    put:
-      tags:
-        - Reservations
-      summary: 'Confirm an existing reservation'
-      description: |
-        This confirms an existing reservation. The `utcHoldExpiration` MUST NOT be elapsed when this request is sent, otherwise the response MAY show a `status` of `EXPIRED`.
-      operationId: 'confirmReservation'
-      parameters:
-        - $ref: '#/components/parameters/SupplierId'
-      requestBody:
-        $ref: '#/components/requestBodies/ConfirmReservationRequest'
-      responses:
-        '200':
-          $ref: '#/components/responses/BookingReservationResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
 
-  /cancellations:
+  /suppliers/{supplierId}/bookings/{uuid}/cancel:
     post:
       tags:
         - Cancellations
       summary: 'Create a new cancellation request.'
       description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
         This creates a new cancellation request for a booking with `status` of `CONFIRMED`. Cancellation policy rules MUST be validated at this time.
       operationId: 'createCancellation'
       parameters:
         - $ref: '#/components/parameters/SupplierId'
+        - $ref: '#/components/parameters/Uuid'
       requestBody:
         $ref: '#/components/requestBodies/CreateCancellationRequest'
       responses:
@@ -329,6 +348,8 @@ paths:
         - Cancellations
       summary: 'Expire the hold of an existing cancellation request.'
       description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
         This expires the hold of an existing cancellation request. If a cancellation request is sent again in the future, it MUST start with a new `createCancellation` request because the `utcRequestedAt` SHOULD be cleared after successfully processing this request.
       operationId: 'expireCancellation'
       parameters:
@@ -347,15 +368,20 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-    put:
+
+  /suppliers/{supplierId}/bookings/{uuid}/confirmCancel:
+    post:
       tags:
         - Cancellations
       summary: 'Confirm an existing cancellation request.'
       description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
         This confirms an existing cancellation request. Any cancellation policy MUST reference the `utcRequestedAt` and not use the timestamp of this request.
       operationId: 'confirmCancellation'
       parameters:
         - $ref: '#/components/parameters/SupplierId'
+        - $ref: '#/components/parameters/Uuid'
       requestBody:
         $ref: '#/components/requestBodies/ConfirmCancellationRequest'
       responses:
@@ -372,17 +398,21 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /bookings:
-    get:
+  /suppliers/{supplierId}/bookings/{uuid}/extend:
+    post:
       tags:
         - Bookings
-      summary: 'Gets the current details of an in-progress reservation or completed booking.'
+      summary: 'Extend the hold of an existing reservation.'
       description: |
-        This returns the current state of any valid booking. This request MAY be made at any point after the initial `createReservation` request is processed successfully and it MUST return the booking reservation object.
-      operationId: 'getBooking'
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
+        This extends the hold of an existing reservation. The `utcHoldExpiration` MUST NOT be elapsed when this request is sent, otherwise the response MAY show a `status` of `EXPIRED`.
+      operationId: 'extendReservation'
       parameters:
         - $ref: '#/components/parameters/SupplierId'
         - $ref: '#/components/parameters/Uuid'
+      requestBody:
+        $ref: '#/components/requestBodies/ExtendReservationRequest'
       responses:
         '200':
           $ref: '#/components/responses/BookingReservationResponse'
@@ -396,6 +426,36 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
+
+  /suppliers/{supplierId}/bookings/{uuid}/confirm:
+    post:
+      tags:
+        - Bookings
+      summary: 'Confirm an existing reservation'
+      description: |
+        **WARNING: this endpoint may live under a different domain, path or both depending on the supplier endpoint URL returned by the GET /suppliers.**
+
+        This confirms an existing reservation. The `utcHoldExpiration` MUST NOT be elapsed when this request is sent, otherwise the response MAY show a `status` of `EXPIRED`.
+      operationId: 'confirmReservation'
+      parameters:
+        - $ref: '#/components/parameters/SupplierId'
+        - $ref: '#/components/parameters/Uuid'
+      requestBody:
+        $ref: '#/components/requestBodies/ConfirmReservationRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/BookingReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 components:
   schemas:
     Availability:
@@ -524,12 +584,12 @@ components:
         productId:
           type: string
           description: |
-            A valid product ID that matches the `id` returned from `GET /products`.
+            A valid product ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
           example: 'adult'
         optionId:
           type: string
           description: |
-            A valid option ID that matches the `id` returned from `GET /products`.
+            A valid option ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
           example: 'LR1-01'
         availability:
           $ref: '#/components/schemas/Availability'
@@ -1083,7 +1143,7 @@ components:
         unitId:
           type: string
           description: |
-            A valid unit ID that matches the `id` returned from `GET /products`.
+            A valid unit ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
           example: 'adult'
         resellerReference:
           $ref: '#/components/schemas/ResellerReference'
@@ -1110,7 +1170,7 @@ components:
         unitId:
           type: string
           description: |
-            A valid unit ID that matches the `id` returned from `GET /products`.
+            A valid unit ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
             example: 'adult'
         quantity:
           type: integer
@@ -1179,7 +1239,7 @@ components:
       name: 'optionId'
       in: query
       description: |
-        A valid option ID that matches the `id` returned from `GET /products`.
+        A valid option ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
       required: true
       schema:
         type: string
@@ -1188,14 +1248,14 @@ components:
       name: 'productId'
       in: query
       description: |
-        A valid product ID that matches the `id` returned from `GET /products`.
+        A valid product ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
       required: true
       schema:
         type: string
         format: string
     SupplierId:
       name: 'supplierId'
-      in: query
+      in: path
       description: |
         A valid supplier ID that matches the `id` returned from `GET /suppliers`.
       required: true
@@ -1204,9 +1264,9 @@ components:
         format: string
     Uuid:
       name: 'uuid'
-      in: query
+      in: path
       description: |
-        A valid booking reservation UUID that matches the `uuid` sent during the initial `POST /reservations`
+        A valid booking reservation UUID that matches the `uuid` sent during the initial `POST /suppliers/{supplierId}/bookings/{uuid}`
       required: true
       schema:
         type: string
@@ -1215,7 +1275,7 @@ components:
       name: optionIds
       in: query
       description: |
-        A list of valid option IDs that matches `id`s returned from `GET /products`. TODO: IS THIS REALLY CORRECT??
+        A list of valid option IDs that matches `id`s returned from `GET /suppliers/{supplierId}/products`. TODO: IS THIS REALLY CORRECT??
       schema:
         type: array
         items:
@@ -1240,12 +1300,12 @@ components:
               productId:
                 type: string
                 description: |
-                  A valid product ID that matches the `id` returned from `GET /products`.
+                  A valid product ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
                 example: 'adult'
               optionId:
                 type: string
                 description: |
-                  A valid option ID that matches the `id` returned from `GET /products`.
+                  A valid option ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
                 example: 'LR1-01'
               availabilityIds:
                 type: array
@@ -1287,17 +1347,17 @@ components:
               productId:
                 type: string
                 description: |
-                  A valid product ID that matches the `id` returned from `GET /products`.
+                  A valid product ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
                 example: 'adult'
               optionId:
                 type: string
                 description: |
-                  A valid option ID that matches the `id` returned from `GET /products`.
+                  A valid option ID that matches the `id` returned from `GET /suppliers/{supplierId}/products`.
                 example: 'LR1-01'
               availabilityId:
                 type: string
                 description: |
-                  A valid availability ID that matches the `id` returned from `GET /availability`.
+                  A valid availability ID that matches the `id` returned from `GET /suppliers/{supplierId}/availability`.
                 example: '28271273-a317-40fc-8f42-79725a7072a3'
               unitItems:
                 type: array
@@ -1318,13 +1378,10 @@ components:
           schema:
             type: object
             required:
-              - uuid
               - reason
               - reasonDetails
               - holdExpirationMinutes
             properties:
-              uuid:
-                $ref: '#/components/schemas/Uuid'
               reason:
                 type: string
                 enum:
@@ -1358,11 +1415,8 @@ components:
           schema:
             type: object
             required:
-              - uuid
               - contact
             properties:
-              uuid:
-                $ref: '#/components/schemas/Uuid'
               resellerReference:
                 $ref: '#/components/schemas/ResellerReference'
               contact:
@@ -1376,12 +1430,9 @@ components:
           schema:
             type: object
             required:
-              - uuid
               - reason
               - reasonDetails
             properties:
-              uuid:
-                $ref: '#/components/schemas/Uuid'
               reason:
                 $ref: '#/components/schemas/Reason'
               reasonDetails:
@@ -1395,12 +1446,9 @@ components:
           schema:
             type: object
             required:
-              - uuid
               - reason
               - reasonDetails
             properties:
-              uuid:
-                $ref: '#/components/schemas/Uuid'
               reason:
                 $ref: '#/components/schemas/Reason'
               reasonDetails:
@@ -1415,6 +1463,5 @@ tags:
   - name: Suppliers
   - name: Products
   - name: Availability
-  - name: Reservations
-  - name: Cancellations
   - name: Bookings
+  - name: Cancellations
